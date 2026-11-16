@@ -61,6 +61,9 @@ pub(crate) enum ImeTarget {
     /// Android only: the online login page's focused edit, whether the legacy
     /// nickname/password page or the VERA Online sign-in form.
     WolLoginField,
+    /// Android only: the skirmish setup page's player-name box, the ANSI edit
+    /// `0x00615226..0x0061527A` filters to bytes (`app::shell_skirmish`).
+    SkirmishPlayerName,
 }
 
 /// Process-local input-method state. Presentation-only: never serialized or
@@ -151,6 +154,10 @@ fn target(state: &AppState) -> Option<(ImeTarget, RectPx)> {
             crate::app::shell_wol::lobby::ime_edit_rect(state),
         ),
         (
+            ImeTarget::SkirmishPlayerName,
+            crate::app::App::ime_player_name_rect(state),
+        ),
+        (
             ImeTarget::ChooseMapSearch,
             crate::app::App::choose_map_search_ime_rect(state),
         ),
@@ -223,8 +230,11 @@ mod android {
                 crate::app::shell_lan::ime_edit_text(state)
             }
             ImeTarget::WolLoginField => crate::app::shell_wol::login::ime_text(state),
+            ImeTarget::WolLobbyEdit => crate::app::shell_wol::lobby::ime_edit_text(state),
             ImeTarget::InGameChat => crate::app::input::messages::ime_edit_state(state),
             ImeTarget::SetupChat => crate::app::input::multiplayer_setup::ime_text(state),
+            ImeTarget::SkirmishPlayerName => crate::app::App::ime_player_name_text(state),
+            ImeTarget::ChooseMapSearch => crate::app::App::choose_map_search_ime_text(state),
             _ => None,
         }
     }
@@ -343,12 +353,27 @@ mod android {
                     None,
                 );
             }
+            ImeTarget::WolLobbyEdit => {
+                crate::app::shell_wol::lobby::key_press(
+                    state,
+                    Some(winit::keyboard::KeyCode::Backspace),
+                    None,
+                );
+            }
             ImeTarget::InGameChat => crate::app::input::chat::backspace(state),
             ImeTarget::SetupChat => crate::app::input::multiplayer_setup::key_press(
                 state,
                 Some(winit::keyboard::KeyCode::Backspace),
                 None,
             ),
+            ImeTarget::SkirmishPlayerName => crate::app::App::ime_key_press(
+                state,
+                Some(winit::keyboard::KeyCode::Backspace),
+                None,
+            ),
+            ImeTarget::ChooseMapSearch => {
+                crate::app::App::choose_map_search_backspace(state);
+            }
             _ => {}
         }
     }
@@ -387,19 +412,19 @@ fn commit(state: &mut AppState, text: &str) {
         Some(ImeTarget::SetupChat) => {
             crate::app::input::multiplayer_setup::key_press(state, None, Some(text))
         }
+        Some(ImeTarget::SkirmishPlayerName) => {
+            crate::app::App::ime_key_press(state, None, Some(text))
+        }
+        Some(ImeTarget::ChooseMapSearch) => {
+            crate::app::App::choose_map_search_text(state, text);
+        }
         Some(ImeTarget::LanLobbyChat) => crate::app::shell_lan::key_press(state, None, Some(text)),
         Some(ImeTarget::LanLobbyName) => crate::app::shell_lan::key_press(state, None, Some(text)),
         Some(ImeTarget::WolLoginField) => {
             crate::app::shell_wol::login::key_press(state, None, Some(text))
         }
-        Some(ImeTarget::SetupChat) => {
-            crate::app::input::multiplayer_setup::key_press(state, None, Some(text))
-        }
         Some(ImeTarget::WolLobbyEdit) => {
             crate::app::shell_wol::lobby::key_press(state, None, Some(text))
-        }
-        Some(ImeTarget::ChooseMapSearch) => {
-            crate::app::App::choose_map_search_text(state, text);
         }
         None => {}
     }

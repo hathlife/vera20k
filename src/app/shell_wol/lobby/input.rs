@@ -90,6 +90,20 @@ pub(crate) fn ime_edit_rect(state: &AppState) -> Option<crate::ui::shell::geom::
         })
 }
 
+/// The text and caret of [`ime_edit_rect`]'s edit, for seeding the input
+/// method: the chat while it shows, else the room search.
+pub(crate) fn ime_edit_text(state: &AppState) -> Option<(String, usize)> {
+    let edit = {
+        let lobby = lobby(state)?;
+        if lobby.ui.shows_chat() {
+            &lobby.ui.chat.edit
+        } else {
+            &lobby.ui.search
+        }
+    };
+    Some((String::from_utf16_lossy(&edit.units), edit.caret))
+}
+
 pub(crate) fn key_press(state: &mut AppState, code: Option<KeyCode>, text: Option<&str>) {
     if shell_transition::blocks_shell_input(state)
         || !lobby(state).is_some_and(WolLobby::interactive)
