@@ -543,20 +543,21 @@ pub unsafe extern "C" fn __wrap_pthread_create(
     let mut attr_copy: MaybeUninit<libc::pthread_attr_t> = MaybeUninit::uninit();
     let mut attr_ptr = attr;
 
-    if !attr.is_null() {
-        std::ptr::copy_nonoverlapping(
-            attr as *const libc::pthread_attr_t,
-            attr_copy.as_mut_ptr(),
-            1,
-        );
+    // SAFETY: `attr` is either null or an initialised `pthread_attr_t` the
+    // caller owns, and `attr_copy` is a local of that same type.
+    unsafe {
+        if !attr.is_null() {
+            std::ptr::copy_nonoverlapping(
+                attr as *const libc::pthread_attr_t,
+                attr_copy.as_mut_ptr(),
+                1,
+            );
+        } else {
+            libc::pthread_attr_init(attr_copy.as_mut_ptr());
+        }
         attr_ptr = attr_copy.as_ptr() as *const c_void;
-    } else {
-        libc::pthread_attr_init(attr_copy.as_mut_ptr());
-        attr_ptr = attr_copy.as_ptr() as *const c_void;
+        libc::pthread_attr_setstacksize(attr_copy.as_mut_ptr(), 8 * 1024 * 1024);
+        __real_pthread_create(thread, attr_ptr, start_routine, arg)
     }
-
-    libc::pthread_attr_setstacksize(attr_copy.as_mut_ptr(), 8 * 1024 * 1024);
-
-    __real_pthread_create(thread, attr_ptr, start_routine, arg)
 }
 
