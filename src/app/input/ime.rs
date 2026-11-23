@@ -197,8 +197,6 @@ pub(crate) fn sync(state: &mut AppState) {
     }
     #[cfg(target_os = "android")]
     android::sync(state, target);
-    #[cfg(target_os = "android")]
-    crate::app::shell_lan::take_touch_send(state);
 }
 
 /// Android: whether the soft keyboard is up, which keeps the frame loop polling
@@ -239,15 +237,6 @@ mod android {
         let Some((text, cursor)) = seed(state, focused) else {
             return;
         };
-        // A password box tells the input method to stop learning and suggesting
-        // it (`ES_PASSWORD`, `0x00614FDC`); the flag follows the focus, so the
-        // username next door keeps its suggestions.
-        let secret =
-            focused == ImeTarget::WolLoginField && crate::app::shell_wol::login::ime_secret(state);
-        if state.platform.ime.android_secret != Some(secret) {
-            state.platform.ime.android_secret = Some(secret);
-            crate::util::android_ime::set_secret(secret);
-        }
         // A tap on an edit asks for the keyboard again, with the edit's text:
         // the player may have collapsed the keyboard with its own hide button,
         // which the engine never sees.
