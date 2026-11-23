@@ -138,6 +138,15 @@ impl App {
         Self::choose_map_search_input(state, vera20k_gui::InputEvent::Text(text))
     }
 
+    /// Android: one Backspace for Choose Map's search line, through its edit.
+    #[cfg(target_os = "android")]
+    pub(super) fn choose_map_search_backspace(state: &mut AppState) -> bool {
+        Self::choose_map_search_input(
+            state,
+            vera20k_gui::InputEvent::Key(vera20k_gui::Key::Backspace),
+        )
+    }
+
     /// Typed text or Backspace for the search line of a Choose Map that
     /// takes keys (see [`Self::choose_map_search_ime_rect`]), through its
     /// edit; false when none does.
@@ -1322,11 +1331,11 @@ impl App {
 
     pub(super) fn handle_skirmish_shell_key_input(
         state: &mut AppState,
-        code: KeyCode,
+        code: Option<KeyCode>,
         text: Option<&str>,
     ) -> bool {
         let shift = state.platform.live_modifiers.shift_key();
-        let event = crate::ui::shell::controller::gui_input(Some(code), shift, text);
+        let event = crate::ui::shell::controller::gui_input(code, shift, text);
         let font = &state.renderer.bit_font;
         let frontend = &mut state.frontend;
         let focused = crate::ui::skirmish_shell::page::key(

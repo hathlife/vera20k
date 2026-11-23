@@ -596,10 +596,7 @@ pub(crate) fn render_multiplayer_setup(
                 atlas,
                 font,
                 &edit,
-                state
-                    .platform
-                    .ime
-                    .composition(crate::app::input::ime::ImeTarget::SetupChat),
+                state.platform.ime.open_composition(),
                 layout.chat,
                 controller.caret_visible_in(view.page().dialog, node),
                 label_rgb,

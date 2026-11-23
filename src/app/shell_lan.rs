@@ -983,24 +983,6 @@ pub(crate) fn key(state: &mut AppState, event: &KeyEvent) {
     }
 }
 
-/// The chat NewEdit while it takes keys, for the input method
-/// (`app::input::ime`). The name edit takes byte text only, so it keeps
-/// plain key text.
-pub(crate) fn ime_chat_rect(state: &AppState) -> Option<crate::ui::shell::geom::RectPx> {
-    let routed = state.frontend.screen == crate::ui::game_screen::GameScreen::MainMenu
-        && state.frontend.shell_route == ShellRoute::LanLobby
-        && !shell_transition::blocks_shell_input(state);
-    let chat = state.frontend.shell_controller.focused_control(PAGE.dialog) == Some(CHAT);
-    state
-        .frontend
-        .lan
-        .as_ref()
-        .filter(|runtime| {
-            routed && runtime.modal.is_none() && !runtime.creating && runtime.lobby.enabled && chat
-        })
-        .map(|_| layout(state).rect(CHAT).unwrap_or_default())
-}
-
 pub(crate) fn key_press(state: &mut AppState, code: Option<KeyCode>, text: Option<&str>) {
     let Some(runtime) = state.frontend.lan.as_mut() else {
         return;

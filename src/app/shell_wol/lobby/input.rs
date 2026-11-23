@@ -42,25 +42,15 @@ pub(crate) fn sync(state: &mut AppState) {
     super::player_card::sync(state);
 }
 
-/// The NewEdit that takes keys, for the input method (`app::input::ime`):
-/// `handle_wol_key` reaches [`key_press`] with the lobby page up, no page
-/// dialog and no popup. It is the chat edit while the chat shows, else VERA's
-/// room search.
-pub(crate) fn ime_edit_rect(state: &AppState) -> Option<crate::ui::shell::geom::RectPx> {
-    let routed = crate::app::input::precedence::route_page(state)
-        == crate::app::input::precedence::ScreenPage::Wol
-        && !shell_transition::blocks_shell_input(state)
-        && !App::wol_quick_match_verify(state)
-        && !super::page::open(state)
-        && App::wol_page_is_lobby(state);
+/// The lobby's own dialog tree (`0x113` and its popups), while the lobby page
+/// takes the keys: `handle_wol_key` reaches [`key_press`] with no page dialog
+/// over it, so its edits are the ones the input method edits
+/// (`app::input::ime`).
+#[cfg(target_os = "android")]
+pub(crate) fn ime_gui(state: &AppState) -> Option<&vera20k_gui::Gui> {
     lobby(state)
-        .filter(|lobby| {
-            routed && lobby.interactive() && lobby.ui.popup.is_none() && lobby.ui.card.is_none()
-        })
-        .map(|lobby| {
-            let edit = if lobby.ui.shows_chat() { CHAT } else { SEARCH };
-            layout(state).control_rect(edit).unwrap_or_default()
-        })
+        .filter(|lobby| lobby.interactive())
+        .map(|lobby| lobby.ui.gui())
 }
 
 /// What the lobby's widgets did: their cues, a player card opened and the

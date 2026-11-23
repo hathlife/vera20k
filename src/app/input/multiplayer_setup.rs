@@ -2,7 +2,6 @@
 //! MatchSession and the setup lifecycle adapter decide admission and effects.
 
 use crate::app::frontend::{shell_layout, shell_transition};
-use crate::app::shell_route::ShellRoute;
 use crate::app::{App, AppState};
 use crate::ui::multiplayer_setup::*;
 use crate::ui::shell::page::{PageCue, PageEvent};
@@ -221,27 +220,6 @@ pub(crate) fn leaves_escape(state: &AppState) -> bool {
             .multiplayer_setup
             .as_ref()
             .is_some_and(|ui| !ui.game_options && ui.map_offer.is_none())
-}
-
-/// The chat NewEdit while it takes keys, for the input method
-/// (`app::input::ime`): [`key_press`] reaches the focused chat with no
-/// verify box, page dialog, notice or ChooseMap over the dialog.
-pub(crate) fn ime_chat_rect(state: &AppState) -> Option<crate::ui::shell::geom::RectPx> {
-    let routed = state.frontend.screen == crate::ui::game_screen::GameScreen::MainMenu
-        && state.frontend.shell_route == ShellRoute::NetworkSetup
-        && state
-            .frontend
-            .skirmish_shell_state
-            .choose_map_modal
-            .is_none()
-        && !shell_transition::blocks_shell_input(state)
-        && room_takes_keys(state);
-    state
-        .frontend
-        .multiplayer_setup
-        .as_ref()
-        .filter(|ui| routed && !ui.game_options && ui.map_offer.is_none())
-        .map(|_| page_layout(state).chat)
 }
 
 pub(crate) fn key_press(state: &mut AppState, code: Option<KeyCode>, text: Option<&str>) {

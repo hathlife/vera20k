@@ -893,7 +893,7 @@ impl App {
         ) || (screen == ScreenPage::Skirmish
             && pressed
             && !is_escape
-            && Self::handle_skirmish_shell_key_input(state, code, event.text.as_deref()))
+            && Self::handle_skirmish_shell_key_input(state, Some(code), event.text.as_deref()))
             || !in_game
         {
             return;

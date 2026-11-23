@@ -766,7 +766,7 @@ pub(super) fn map_search_display(state: &AppState, search: &str) -> String {
     let composition = state
         .platform
         .ime
-        .composition(crate::app::input::ime::ImeTarget::ChooseMapSearch)
+        .open_composition()
         .map(|(text, _)| String::from_utf16_lossy(text))
         .unwrap_or_default();
     format!("{search}{composition}")

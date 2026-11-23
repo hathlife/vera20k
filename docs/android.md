@@ -252,6 +252,25 @@ input method through `util::android_ime`: winit 0.30's Android backend delivers 
 seeds it from the focused edit and turns its changes back into that screen's own
 key path.
 
+The edits belong to the GUI library (`gui/`, `docs/gui-library-api.md`): each shell
+page keeps its `Edit` nodes in a `vera20k_gui` tree — the shell's one
+`DialogController`, the WOL lobby's own tree, and the saved-game browsers' — so the
+bridge asks the tree the current page owns for its focused edit, and takes from it
+the text and caret to seed the platform buffer with, the node's rectangle for the
+candidate window, and `Prop::Password` for the input method's password flag. The
+finished text and each Backspace go back through that screen's own key entry
+(`handle_wol_key`, `shell_lan::key_press`, `multiplayer_setup::key_press`,
+`choose_map_search_text`, the saved-game browser's), the path a typed character
+takes on the desktop. No screen keeps IME state of its own; the in-game message
+lane is the one edit outside the GUI trees, and keeps the bridge it always had.
+
+The keyboard comes up for the edit the player tapped. A press that lands on a GUI
+`Edit` arms it (`util::android_ime::arm`, recorded by the shell's dialog
+controller), because the pages give their edits the focus when they open: without
+the tap, entering the LAN lobby, the setup room or Choose Map would put the
+keyboard over the page. The WOL lobby and the save-name prompts ask for it without
+a tap.
+
 The bridge holds the input method's composing range back from those commits and
 draws it in the IME colour, so a pinyin run only reaches the game once it is
 committed. The password boxes report themselves

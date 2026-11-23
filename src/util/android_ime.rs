@@ -13,7 +13,7 @@
 //! and the module still compiles for the desktop and the browser.
 
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 /// What the input method holds: its whole buffer and the caret within it.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -72,41 +72,23 @@ static HOOKS: OnceLock<Hooks> = OnceLock::new();
 /// button, which the engine never sees.
 static SHOW_REQUESTED: AtomicBool = AtomicBool::new(false);
 
-/// The screen area whose edit the player tapped. Android shows the keyboard for
-/// a tapped edit only, so the arming lives here, in one place: a screen that
-/// gains a new edit passes its area and control instead of growing a flag.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Armed {
-    LanLobby,
-    SetupRoom,
-    WolLogin,
-    Skirmish,
+/// Android shows the keyboard for a tapped edit only, so a tap arms one shell
+/// dialog here, in one place for every screen: `app::input::ime` asks for the
+/// keyboard for the focused edit of that dialog, and the pages give their edits
+/// the focus when they open, so no page brings the keyboard up by itself. The
+/// arming is per dialog, so a tap on one page's edit never opens the keyboard
+/// on the next.
+static ARMED: AtomicU32 = AtomicU32::new(0);
+
+/// Record a tap on `dialog`'s GUI edit; the keyboard may come up for its
+/// focused edit.
+pub fn arm(dialog: u16) {
+    ARMED.store(u32::from(dialog) + 1, Ordering::Release);
 }
 
-static ARMED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-
-fn armed_code(area: Armed, control: u16) -> u32 {
-    ((area as u32) + 1) << 16 | u32::from(control)
-}
-
-/// Record a tap on `area`'s `control` edit; the next `state` read arms it.
-pub fn arm(area: Armed, control: u16) {
-    ARMED.store(armed_code(area, control), Ordering::Release);
-}
-
-/// The tapped edit, when one is armed.
-pub fn armed() -> Option<(Armed, u16)> {
-    let code = ARMED.load(Ordering::Acquire);
-    if code == 0 {
-        return None;
-    }
-    let area = match ((code >> 16) - 1) as u8 {
-        0 => Armed::LanLobby,
-        1 => Armed::SetupRoom,
-        2 => Armed::WolLogin,
-        _ => Armed::Skirmish,
-    };
-    Some((area, (code & 0xFFFF) as u16))
+/// Whether a tap armed `dialog`'s edit.
+pub fn armed(dialog: u16) -> bool {
+    ARMED.load(Ordering::Acquire) == u32::from(dialog) + 1
 }
 
 /// Drop the arming; the keyboard hides with it.
