@@ -12,6 +12,7 @@ use super::{
     KeyEventExtModifierSupplement, MouseButton, MouseScrollDelta, PhysicalKey, PhysicalSize,
     ShellKey, WindowEvent, WindowId,
 };
+#[cfg(target_os = "android")]
 use winit::event::ElementState;
 use crate::ui::pause_menu::InGameMenuState;
 

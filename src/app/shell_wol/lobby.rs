@@ -64,7 +64,9 @@ pub(super) use events::{
 };
 pub(super) use help::locale_name;
 pub(crate) use help::{badge_help, player_badge, status_help};
-pub(crate) use input::{create_layout, ime_edit_rect, ime_edit_text, key_press, popup_scale};
+pub(crate) use input::{create_layout, ime_edit_rect, key_press, popup_scale};
+#[cfg(target_os = "android")]
+pub(crate) use input::ime_edit_text;
 pub(super) use input::{cursor_moved, mouse};
 #[cfg(test)]
 use join::JoinErrorReply;

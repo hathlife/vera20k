@@ -72,6 +72,48 @@ static HOOKS: OnceLock<Hooks> = OnceLock::new();
 /// button, which the engine never sees.
 static SHOW_REQUESTED: AtomicBool = AtomicBool::new(false);
 
+/// The screen area whose edit the player tapped. Android shows the keyboard for
+/// a tapped edit only, so the arming lives here, in one place: a screen that
+/// gains a new edit passes its area and control instead of growing a flag.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Armed {
+    LanLobby,
+    SetupRoom,
+    WolLogin,
+    Skirmish,
+}
+
+static ARMED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+fn armed_code(area: Armed, control: u16) -> u32 {
+    ((area as u32) + 1) << 16 | u32::from(control)
+}
+
+/// Record a tap on `area`'s `control` edit; the next `state` read arms it.
+pub fn arm(area: Armed, control: u16) {
+    ARMED.store(armed_code(area, control), Ordering::Release);
+}
+
+/// The tapped edit, when one is armed.
+pub fn armed() -> Option<(Armed, u16)> {
+    let code = ARMED.load(Ordering::Acquire);
+    if code == 0 {
+        return None;
+    }
+    let area = match ((code >> 16) - 1) as u8 {
+        0 => Armed::LanLobby,
+        1 => Armed::SetupRoom,
+        2 => Armed::WolLogin,
+        _ => Armed::Skirmish,
+    };
+    Some((area, (code & 0xFFFF) as u16))
+}
+
+/// Drop the arming; the keyboard hides with it.
+pub fn clear_armed() {
+    ARMED.store(0, Ordering::Release);
+}
+
 /// Ask for the keyboard on the next frame; the tap that asks is what a
 /// collapsed keyboard has to answer.
 pub fn request_show() {

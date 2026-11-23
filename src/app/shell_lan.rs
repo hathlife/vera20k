@@ -910,10 +910,6 @@ pub(crate) fn ime_chat_rect(state: &AppState) -> Option<crate::ui::shell::geom::
                 && runtime.create.is_none()
                 && runtime.lobby.enabled
                 && runtime.lobby.focused_control == CHAT
-                // Android shows a soft keyboard whenever the window allows an
-                // input method, so wait for a tap on an edit; the desktop keeps
-                // the chat box live as before.
-                && (!cfg!(target_os = "android") || runtime.lobby.ime_armed)
         })
         .map(|_| layout(state).chat)
 }
@@ -941,7 +937,6 @@ pub(crate) fn ime_name_rect(state: &AppState) -> Option<crate::ui::shell::geom::
                 && runtime.create.is_none()
                 && runtime.lobby.enabled
                 && runtime.lobby.focused_control == NAME
-                && runtime.lobby.ime_armed
         })
         .map(|_| layout(state).name)
 }
@@ -1152,7 +1147,7 @@ pub(crate) fn mouse(state: &mut AppState, button: MouseButton, pressed: bool) {
     if pressed && layout.chat.contains(x, y) {
         let was_chat = lobby.focused_control == CHAT;
         lobby.focus(CHAT);
-        lobby.ime_armed = true;
+        crate::util::android_ime::arm(crate::util::android_ime::Armed::LanLobby, CHAT);
         if was_chat && !lobby.chat.edit.units.is_empty() {
             lobby.touch_send = true;
         }
@@ -1254,7 +1249,10 @@ pub(crate) fn mouse(state: &mut AppState, button: MouseButton, pressed: bool) {
                 lobby.focus(control);
                 // A tap on an edit is what asks Android for the soft keyboard.
                 if matches!(control, NAME | CHAT) {
-                    lobby.ime_armed = true;
+                    crate::util::android_ime::arm(
+                        crate::util::android_ime::Armed::LanLobby,
+                        control,
+                    );
                     // Android: a collapsed keyboard comes back on the next tap.
                     #[cfg(target_os = "android")]
                     crate::util::android_ime::request_show();
@@ -1266,7 +1264,10 @@ pub(crate) fn mouse(state: &mut AppState, button: MouseButton, pressed: bool) {
             #[cfg(target_os = "android")]
             if layout.chat.contains(x, y) {
                 lobby.focus(CHAT);
-                lobby.ime_armed = true;
+                crate::util::android_ime::arm(
+                    crate::util::android_ime::Armed::LanLobby,
+                    CHAT,
+                );
                 crate::util::android_ime::request_show();
             }
             lobby

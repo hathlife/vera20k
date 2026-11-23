@@ -258,9 +258,6 @@ pub(crate) fn ime_rect(state: &AppState) -> Option<crate::ui::shell::geom::RectP
         return None;
     }
     let login = state.frontend.wol.as_ref()?.login()?;
-    if !login.ime_armed {
-        return None;
-    }
     // The account popups cover the page, so they come first.
     if let Some(popup) = login.account.as_ref() {
         let layout = account_form_layout(state)?;

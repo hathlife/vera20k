@@ -160,27 +160,40 @@ fn target(state: &AppState) -> Option<(ImeTarget, RectPx)> {
         (ImeTarget::ChooseMapSearch, choose_map_search_rect(state)),
     ]
     .into_iter()
-    .find_map(|(target, rect)| rect.map(|rect| (target, rect)))
+    .find_map(|(target, rect)| {
+        let rect = rect?;
+        // Android shows the keyboard only for the edit a tap armed; the
+        // in-game chat and the WOL lobby's edit open on their own.
+        if let Some((area, control)) = armed_key(target) {
+            let tapped = crate::util::android_ime::armed() == Some((area, control));
+            if !tapped {
+                return None;
+            }
+        }
+        Some((target, rect))
+    })
+}
+
+/// The area and control a target needs a tap for, on Android. `None` means the
+/// edit opens the keyboard by itself.
+fn armed_key(target: ImeTarget) -> Option<(crate::util::android_ime::Armed, u16)> {
+    use crate::util::android_ime::Armed;
+    match target {
+        ImeTarget::LanLobbyChat => Some((Armed::LanLobby, crate::ui::lan_shell::CHAT)),
+        ImeTarget::LanLobbyName => Some((Armed::LanLobby, crate::ui::lan_shell::NAME)),
+        ImeTarget::SetupChat => Some((Armed::SetupRoom, 0)),
+        ImeTarget::WolLoginField => Some((Armed::WolLogin, 0)),
+        ImeTarget::SkirmishPlayerName => Some((Armed::Skirmish, 0)),
+        ImeTarget::ChooseMapSearch => Some((Armed::Skirmish, 1)),
+        ImeTarget::InGameChat | ImeTarget::WolLobbyEdit => None,
+    }
 }
 
 /// The chooser's search line takes the keyboard only once a tap armed it
 /// (`ChooseMapModalState::ime_armed`), so opening the chooser never covers the
 /// list; other platforms keep the line's area for their candidate window.
 fn choose_map_search_rect(state: &AppState) -> Option<RectPx> {
-    let rect = crate::app::App::choose_map_search_ime_rect(state)?;
-    #[cfg(target_os = "android")]
-    {
-        let armed = state
-            .frontend
-            .skirmish_shell_state
-            .choose_map_modal
-            .as_ref()
-            .is_some_and(|modal| modal.ime_armed);
-        if !armed {
-            return None;
-        }
-    }
-    Some(rect)
+    crate::app::App::choose_map_search_ime_rect(state)
 }
 
 /// Ask for an input method exactly while a supported edit takes keys
@@ -195,6 +208,9 @@ pub(crate) fn sync(state: &mut AppState) {
     let target = found.map(|(target, _)| target);
     let platform = &mut state.platform;
     let ime = &mut platform.ime;
+    if ime.target != target && target.is_none() {
+        crate::util::android_ime::clear_armed();
+    }
     if ime.target != target {
         log::info!("IME target {target:?}");
         ime.cancel();
