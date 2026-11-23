@@ -106,6 +106,13 @@ impl ImeState {
             .then_some((self.composition.as_slice(), self.cursor))
     }
 
+    /// The open composition and its cursor, whichever edit owns it (the
+    /// focused edit of the screen that routed the input method).
+    pub(crate) fn open_composition(&self) -> Option<(&[u16], usize)> {
+        let target = self.target?;
+        self.composition(target)
+    }
+
     /// While a composition is open, keys go to the input method (Windows
     /// delivers them as VK_PROCESSKEY), not to the edit.
     pub(crate) fn composing(&self) -> bool {
@@ -133,61 +140,11 @@ fn target(state: &AppState) -> Option<(ImeTarget, RectPx)> {
             ImeTarget::InGameChat,
             crate::app::input::messages::ime_edit_rect(state),
         ),
-        (
-            ImeTarget::LanLobbyChat,
-            crate::app::shell_lan::ime_chat_rect(state),
-        ),
-        (
-            ImeTarget::LanLobbyName,
-            crate::app::shell_lan::ime_name_rect(state),
-        ),
-        (
-            ImeTarget::WolLoginField,
-            crate::app::shell_wol::login::ime_rect(state),
-        ),
-        (
-            ImeTarget::SetupChat,
-            crate::app::input::multiplayer_setup::ime_chat_rect(state),
-        ),
-        (
-            ImeTarget::WolLobbyEdit,
-            crate::app::shell_wol::lobby::ime_edit_rect(state),
-        ),
-        (
-            ImeTarget::SkirmishPlayerName,
-            crate::app::App::ime_player_name_rect(state),
-        ),
-        (ImeTarget::ChooseMapSearch, choose_map_search_rect(state)),
     ]
     .into_iter()
-    .find_map(|(target, rect)| {
-        let rect = rect?;
-        // Android shows the keyboard only for the edit a tap armed; the
-        // in-game chat and the WOL lobby's edit open on their own.
-        if let Some((area, control)) = armed_key(target) {
-            let tapped = crate::util::android_ime::armed() == Some((area, control));
-            if !tapped {
-                return None;
-            }
-        }
-        Some((target, rect))
-    })
+    .find_map(|(target, rect)| rect.map(|rect| (target, rect)))
 }
 
-/// The area and control a target needs a tap for, on Android. `None` means the
-/// edit opens the keyboard by itself.
-fn armed_key(target: ImeTarget) -> Option<(crate::util::android_ime::Armed, u16)> {
-    use crate::util::android_ime::Armed;
-    match target {
-        ImeTarget::LanLobbyChat => Some((Armed::LanLobby, crate::ui::lan_shell::CHAT)),
-        ImeTarget::LanLobbyName => Some((Armed::LanLobby, crate::ui::lan_shell::NAME)),
-        ImeTarget::SetupChat => Some((Armed::SetupRoom, 0)),
-        ImeTarget::WolLoginField => Some((Armed::WolLogin, 0)),
-        ImeTarget::SkirmishPlayerName => Some((Armed::Skirmish, 0)),
-        ImeTarget::ChooseMapSearch => Some((Armed::Skirmish, 1)),
-        ImeTarget::InGameChat | ImeTarget::WolLobbyEdit => None,
-    }
-}
 
 /// The chooser's search line takes the keyboard only once a tap armed it
 /// (`ChooseMapModalState::ime_armed`), so opening the chooser never covers the
@@ -259,15 +216,7 @@ mod android {
     /// The focused edit's text and caret, whichever screen owns it.
     fn seed(state: &AppState, focused: ImeTarget) -> Option<(String, usize)> {
         match focused {
-            ImeTarget::LanLobbyChat | ImeTarget::LanLobbyName => {
-                crate::app::shell_lan::ime_edit_text(state)
-            }
-            ImeTarget::WolLoginField => crate::app::shell_wol::login::ime_text(state),
-            ImeTarget::WolLobbyEdit => crate::app::shell_wol::lobby::ime_edit_text(state),
             ImeTarget::InGameChat => crate::app::input::messages::ime_edit_state(state),
-            ImeTarget::SetupChat => crate::app::input::multiplayer_setup::ime_text(state),
-            ImeTarget::SkirmishPlayerName => crate::app::App::ime_player_name_text(state),
-            ImeTarget::ChooseMapSearch => crate::app::App::choose_map_search_ime_text(state),
             _ => None,
         }
     }
@@ -371,43 +320,8 @@ mod android {
 
     /// One Backspace, through the screen's own key path.
     fn backspace(state: &mut AppState, focused: ImeTarget) {
-        match focused {
-            ImeTarget::LanLobbyChat | ImeTarget::LanLobbyName => {
-                crate::app::shell_lan::key_press(
-                    state,
-                    Some(winit::keyboard::KeyCode::Backspace),
-                    None,
-                );
-            }
-            ImeTarget::WolLoginField => {
-                crate::app::shell_wol::login::key_press(
-                    state,
-                    Some(winit::keyboard::KeyCode::Backspace),
-                    None,
-                );
-            }
-            ImeTarget::WolLobbyEdit => {
-                crate::app::shell_wol::lobby::key_press(
-                    state,
-                    Some(winit::keyboard::KeyCode::Backspace),
-                    None,
-                );
-            }
-            ImeTarget::InGameChat => crate::app::input::chat::backspace(state),
-            ImeTarget::SetupChat => crate::app::input::multiplayer_setup::key_press(
-                state,
-                Some(winit::keyboard::KeyCode::Backspace),
-                None,
-            ),
-            ImeTarget::SkirmishPlayerName => crate::app::App::ime_key_press(
-                state,
-                Some(winit::keyboard::KeyCode::Backspace),
-                None,
-            ),
-            ImeTarget::ChooseMapSearch => {
-                crate::app::App::choose_map_search_backspace(state);
-            }
-            _ => {}
+        if focused == ImeTarget::InGameChat {
+            crate::app::input::chat::backspace(state);
         }
     }
 }
@@ -440,25 +354,7 @@ pub(crate) fn event(state: &mut AppState, event: Ime) {
 
 /// WM_IME_CHAR's consumers: each screen's own text path.
 fn commit(state: &mut AppState, text: &str) {
-    match target(state).map(|(target, _)| target) {
-        Some(ImeTarget::InGameChat) => crate::app::input::chat::commit_text(state, text),
-        Some(ImeTarget::SetupChat) => {
-            crate::app::input::multiplayer_setup::key_press(state, None, Some(text))
-        }
-        Some(ImeTarget::SkirmishPlayerName) => {
-            crate::app::App::ime_key_press(state, None, Some(text))
-        }
-        Some(ImeTarget::ChooseMapSearch) => {
-            crate::app::App::choose_map_search_text(state, text);
-        }
-        Some(ImeTarget::LanLobbyChat) => crate::app::shell_lan::key_press(state, None, Some(text)),
-        Some(ImeTarget::LanLobbyName) => crate::app::shell_lan::key_press(state, None, Some(text)),
-        Some(ImeTarget::WolLoginField) => {
-            crate::app::shell_wol::login::key_press(state, None, Some(text))
-        }
-        Some(ImeTarget::WolLobbyEdit) => {
-            crate::app::shell_wol::lobby::key_press(state, None, Some(text))
-        }
-        None => {}
+    if target(state).map(|(target, _)| target) == Some(ImeTarget::InGameChat) {
+        crate::app::input::chat::commit_text(state, text);
     }
 }
