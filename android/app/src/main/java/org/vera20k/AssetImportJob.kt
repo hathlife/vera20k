@@ -105,6 +105,13 @@ internal class AssetImportJob private constructor() : AutoCloseable {
         @JvmStatic
         fun cancelActive(): Boolean = ACTIVE.get()?.cancel() ?: false
 
+        /** What the engine opens directly: a YR or a plain RA2 installation. */
+        private val REQUIRED_ARCHIVES = listOf("ra2md.mix", "ra2.mix")
+
+        /** Whether an installation folder is one the engine can open. */
+        fun isRetailRoot(names: Collection<String>): Boolean =
+            REQUIRED_ARCHIVES.any { it in names }
+
         /**
          * A child of [directory] named by the chosen provider.
          *

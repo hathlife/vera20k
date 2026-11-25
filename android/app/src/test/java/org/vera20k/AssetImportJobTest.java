@@ -99,6 +99,16 @@ public class AssetImportJobTest {
         return job;
     }
 
+    @Test public void acceptsEitherMasterArchiveAsAnInstallation() {
+        // Yuri's Revenge and original Red Alert 2 installs differ only in the
+        // master archive; the importer must take both (docs/ra2-mode.md).
+        assertTrue(AssetImportJob.isRetailRoot(java.util.List.of("ra2md.mix")));
+        assertTrue(AssetImportJob.isRetailRoot(java.util.List.of("ra2.mix")));
+        assertTrue(AssetImportJob.isRetailRoot(java.util.List.of("ra2.mix", "ra2md.mix")));
+        assertFalse(AssetImportJob.isRetailRoot(java.util.List.of("rules.ini")));
+        assertFalse(AssetImportJob.isRetailRoot(java.util.List.of()));
+    }
+
     private static void assertBusy() {
         AssetImportJob unexpected = AssetImportJob.begin();
         if (unexpected != null) unexpected.close();
