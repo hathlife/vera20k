@@ -65,6 +65,27 @@ and add `-t x86_64` when you need it. Drop it for releases. On macOS/Linux, use
 for `CARGO_PROFILE_SHIPPING_STRIP`, and
 `./android/gradlew -p android :app:assembleDebug`.
 
+## The Red Alert 2 entry
+
+The package ships two launcher entries: the YR ones (`VeraActivity` through the
+retail/VERA icon aliases) and a second entry for original Red Alert 2
+(`Ra2Activity`). RA2 Mode itself already exists on every platform
+(`docs/ra2-mode.md`); the entry only decides that this launch plays it, without
+the player toggling the Options box first.
+
+- `Ra2Activity` is a class of its own, not an `activity-alias`: an alias cannot
+  carry its own `android:process`, and the entry needs one — the engine builds a
+  single winit event loop per process, and `android_main` ends a process that
+  tries a second. It runs as `:ra2`, with its own task affinity and label.
+- The class name is the only difference Rust sees. `android_main` reads
+  `activity.getClass().getName()` and calls `util::ra2_launch::set(true)` for
+  `org.vera20k.Ra2Activity`, before anything loads the configuration, so the
+  entry wins over `[VERA] RA2Mode`. Both entries log their choice
+  (`Android entry: … (Red Alert 2)` / `(Yuri's Revenge)`).
+- The asset importer accepts either master archive: `ra2md.mix` (YR) or
+  `ra2.mix` (RA2), through `AssetImportJob.isRetailRoot`. A RA2-only folder used
+  to be refused because both names were required.
+
 ## Launcher icon
 
 The desktop picks its window icon at run time (`src/app/window_icon.rs`): the

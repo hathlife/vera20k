@@ -45,6 +45,36 @@
                 android:value="vera20k_android" />
         </activity>
 
+        <!-- The RA2 entry. A class of its own, not an alias: an `activity-alias`
+             cannot carry a separate `android:process`, and the engine builds one
+             winit event loop per process, so the two entries must not share one.
+             Rust reads this component's class name and turns `ra2_launch` on
+             (`android/src/lib.rs`), so this entry starts in Red Alert 2 mode.
+             The aliases above stay the YR entries and keep their icon switching. -->
+        <activity
+            android:name="org.vera20k.Ra2Activity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:process=":ra2"
+            android:taskAffinity="org.vera20k.ra2"
+            android:screenOrientation="sensorLandscape"
+            android:resizeableActivity="true"
+            android:icon="@mipmap/ic_launcher_retail"
+            android:roundIcon="@mipmap/ic_launcher_retail"
+            android:theme="@style/Theme.Vera20k.RetailSplash"
+            android:label="VERA20K · RA2"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|density|uiMode|fontScale|locale|layoutDirection">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="vera20k_android" />
+        </activity>
+
         <!-- Two launcher entries, one enabled at a time. A launcher icon is a
              resource compiled into the package, so the VERA Icon box cannot
              change it directly: `VeraActivity.applyAppIcon` enables the chosen

@@ -41,6 +41,28 @@ fn with_activity<R>(f: impl FnOnce(&mut jni::JNIEnv, &JObject) -> R) -> Option<R
     Some(f(&mut env, &activity))
 }
 
+/// The activity class that started this process: `org.vera20k.VeraActivity` for
+/// the YR launcher entries and `org.vera20k.Ra2Activity` for the RA2 one, which
+/// is the only difference the engine sees between them.
+fn activity_class_name() -> Option<String> {
+    with_activity(|env, activity| {
+        let class = env
+            .call_method(activity, "getClass", "()Ljava/lang/Class;", &[])
+            .ok()?
+            .l()
+            .ok()?;
+        let name = env
+            .call_method(&class, "getName", "()Ljava/lang/String;", &[])
+            .ok()?
+            .l()
+            .ok()?;
+        env.get_string(&JString::from(name))
+            .ok()
+            .map(|text| text.to_string_lossy().into_owned())
+    })
+    .flatten()
+}
+
 /// Folder-picker hook for `vera20k::util::folder_picker`.
 ///
 /// The picker is the one thing the NDK cannot do itself: a Storage Access
@@ -377,6 +399,23 @@ fn android_main(app: AndroidApp) {
 
     let log_path = vera20k::entry::init_logging();
     vera20k::entry::log_banner(log_path.as_deref());
+    // The RA2 launcher entry starts this process through its own activity, and
+    // that class name is the only difference. Set the mode before anything
+    // loads the configuration, so this launch wins over `[VERA] RA2Mode`.
+    let entry = activity_class_name();
+    if entry.as_deref() == Some("org.vera20k.Ra2Activity") {
+        vera20k::util::ra2_launch::set(true);
+    }
+    log::info!(
+        "Android entry: {} ({})",
+        entry.as_deref().unwrap_or("unknown"),
+        if vera20k::util::ra2_launch::enabled() {
+            "Red Alert 2"
+        } else {
+            "Yuri's Revenge"
+        }
+    );
+
     if let Err(error) = install_packaged_map(&app) {
         log::warn!("Could not install the packaged skirmish map: {error:#}");
     }
